@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+            transition: background-color 0.3s ease;
+        }
+        body.dark-mode {
+            background-color: #2b2b2b;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+            width: 400px;
+        }
+        .container.dark-mode {
+            background-color: #333;
+        }
+        .hidden { display: none; }
+        #searching { font-size: 20px; color: #333; display: none; }
+        input[type="text"], input[type="password"], select, button {
+            padding: 10px;
+            margin: 10px;
+            width: 200px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button { cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        #displayDataBtn, #hideDataBtn { display: none; }
+        .data-display, .log { display: none; }
+        .entry, .log-entry { margin-bottom: 10px; padding: 10px; background-color: #ffffff; border-radius: 5px; box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1); }
+        .entry .date, .log-entry { font-size: 12px; color: gray; }
+        .theme-toggle { position: absolute; top: 10px; right: 10px; padding: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Admin Dashboard</h2>
+        <button class="theme-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+
+        <!-- Login Section -->
+        <div id="loginSection">
+            <h3>Login to Continue</h3>
+            <input id="username" placeholder="Username" type="text" />
+            <input id="password" placeholder="Password" type="password" />
+            <button onclick="login()">Login</button>
+        </div>
+
+        <!-- Admin Section -->
+        <div id="adminSection" class="hidden">
+            <h3>Welcome, <span id="loggedInUserName"></span></h3>
+            
+            <!-- Admin Hacks Section (only for normal users) -->
+            <div id="adminHacksSection" class="hidden">
+                <h4>Admin Hacks</h4>
+                <input id="adminHackUsername" placeholder="Enter Username" type="text" />
+                <input id="adminHackPasskey" placeholder="Enter Passkey" type="password" />
+                <select id="userRole">
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                    <option value="superadmin">Super Admin</option>
+                </select>
+                <button onclick="grantAdminHacks()">Grant Admin Hacks</button>
+                <div id="searching">Searching...</div><br />
+            </div>
+
+            <!-- Data Display Buttons (always visible for admin/superadmin) -->
+            <button id="displayDataBtn" onclick="displayData()">Display Data</button>
+            <button id="hideDataBtn" onclick="hideData()">Hide Data</button>
+
+            <!-- Data Display Area -->
+            <div class="data-display" id="storedData"></div>
+            <div class="log" id="activityLog">
+                <h3>Activity Log</h3>
+                <div id="logEntries"></div>
+            </div>
+
+            <!-- Logout Button -->
+            <button onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        let storedEntries = [];
+        let activityLog = [];
+        let loggedInUser = null;
+        let grantedAdminRole = false;  // Track if the user was granted admin role
+
+        // Mock user database with normal users and admins
+        const users = {
+            "admin": { password: "admin123", role: "superadmin" },
+            "manager": { password: "manager123", role: "admin" },
+            "user123": { password: "user123", role: "user" },  // Normal user
+        };
+
+        function login() {
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            // Check if the user exists in the database
+            if (users[username] && users[username].password === password) {
+                loggedInUser = username;
+                document.getElementById("loginSection").classList.add('hidden');
+                document.getElementById("adminSection").classList.remove('hidden');
+
+                // Display user information
+                document.getElementById("loggedInUserName").innerText = username;
+
+                // Show the "Grant Admin Hacks" section only for normal users
+                if (users[username].role === "user") {
+                    document.getElementById("adminHacksSection").classList.remove('hidden');
+                    document.getElementById("displayDataBtn").style.display = "none";  // Hide Display Data initially
+                    document.getElementById("hideDataBtn").style.display = "none";  // Hide Hide Data initially
+                    grantedAdminRole = false;
+                } else {
+                    document.getElementById("adminHacksSection").classList.add('hidden');
+                    document.getElementById("displayDataBtn").style.display = "inline-block";  // Show Display Data for admin/superadmin
+                    document.getElementById("hideDataBtn").style.display = "inline-block";  // Show Hide Data for admin/superadmin
+                    grantedAdminRole = true;
+                }
+
+                alert("Login successful! Welcome, " + username + " (" + users[username].role + ")");
+            } else {
+                alert("Invalid credentials. Please try again.");
+            }
+        }
+
+        function grantAdminHacks() {
+            if (!loggedInUser) return alert("Please log in first.");
+
+            const username = document.getElementById("adminHackUsername").value;
+            const passkey = document.getElementById("adminHackPasskey").value;
+            const userRole = document.getElementById("userRole").value;
+
+            if (username && passkey) {
+                document.getElementById("searching").style.display = "block";
+                setTimeout(() => {
+                    document.getElementById("searching").style.display = "none";
+                    alert("Admin hacks granted to " + username + " as " + userRole);
+
+                    // Get the current date for the data entry
+                    const currentDate = new Date().toLocaleString();
+                    storedEntries.push({ username, passkey, role: userRole, date: currentDate });
+                    activityLog.push(`Granted ${userRole} hacks to ${username} on ${currentDate}`);
+                    updateActivityLog();
+
+                    // Once the hacks are granted, only allow the normal user to see the "Display Data" button if they are granted admin/superadmin role
+                    if (userRole === "admin" || userRole === "superadmin") {
+                        grantedAdminRole = true;
+                        document.getElementById("displayDataBtn").style.display = "inline-block";
+                    }
+                }, 2000);
+            } else {
+                alert("Please enter both username and passkey.");
+            }
+        }
+
+        function displayData() {
+            const storedDataDiv = document.getElementById("storedData");
+            storedDataDiv.innerHTML = '';  // Clear previous data
+
+            // Display the stored entries, including the date
+            storedEntries.forEach(entry => {
+                const entryDiv = document.createElement('div');
+                entryDiv.classList.add('entry');
+                entryDiv.innerHTML = `
+                    <p><strong>Username:</strong> ${entry.username}</p>
+                    <p><strong>Passkey:</strong> ${entry.passkey}</p>
+                    <p><strong>Role:</strong> ${entry.role}</p>
+                    <p class="date"><strong>Date:</strong> ${entry.date}</p>
+                `;
+                storedDataDiv.appendChild(entryDiv);
+            });
+
+            storedDataDiv.style.display = "block";
+        }
+
+        function hideData() {
+            const storedDataDiv = document.getElementById("storedData");
+            storedDataDiv.style.display = "none";  // Hide the data
+        }
+
+        function updateActivityLog() {
+            const logEntriesDiv = document.getElementById("logEntries");
+            logEntriesDiv.innerHTML = '';
+
+            activityLog.forEach(log => {
+                const logEntryDiv = document.createElement('div');
+                logEntryDiv.classList.add('log-entry');
+                logEntryDiv.innerHTML = log;
+                logEntriesDiv.appendChild(logEntryDiv);
+            });
+
+            document.getElementById("activityLog").style.display = "block";
+        }
+
+        function logout() {
+            loggedInUser = null;
+            grantedAdminRole = false;
+            document.getElementById("loginSection").classList.remove('hidden');
+            document.getElementById("adminSection").classList.add('hidden');
+            alert("You have logged out successfully.");
+        }
+
+        // Dark Mode Toggle
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            document.querySelector('.container').classList.toggle('dark-mode');
+        }
+    </script>
+</body>
+</html>
